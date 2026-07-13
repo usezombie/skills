@@ -1,139 +1,119 @@
-<div align="center">
+# GitHub Pull Request reviewer
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="assets/logo/light.svg" />
-  <img src="assets/logo/dark.svg" height="40" alt="agentsfleet" />
-</picture>
+`github-pr-reviewer` is an [`agentsfleet`](https://agentsfleet.net) Fleet
+Bundle. It reviews GitHub pull requests and posts focused review comments.
 
-**Agent skills for agentsfleet — install, drive, and operate agents from any AI coding host.**
+The fleet checks changes for correctness bugs, security risks, and missing
+tests. It can read pull request data and post comments. It cannot push, merge,
+approve, or close a pull request.
 
-agentsfleet is a resident engineer for support escalations — it takes a ticket
-through investigation, human-approved remediation, and a customer reply. These
-skills teach Claude Code, Codex CLI, Amp, and OpenCode to drive `agentsfleet`
-non-interactively so your agent can install, steer, and inspect agents without
-you reading every flag.
+## Bundle contents
 
-[![Docs](https://img.shields.io/badge/agentsfleet-Docs-5EEAD4?style=for-the-badge)](https://docs.agentsfleet.net)
-[![Get early access](https://img.shields.io/badge/agentsfleet-Get_early_access-5EEAD4?style=for-the-badge)](https://agentsfleet.net)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+| File | Purpose |
+|---|---|
+| `SKILL.md` | Defines the review goal, steps, and safety limits. |
+| `TRIGGER.md` | Declares the GitHub event, tool, credential, network, and budget policy. |
 
-</div>
+Both files use `github-pr-reviewer` as the bundle name. `agentsfleet` rejects a
+bundle when these names differ.
 
----
+## Before you begin
 
-## Installation
+You need Node.js 24 or later. You also need an `agentsfleet` account and a
+GitHub repository that you can manage.
 
-Skills here follow the [Agent Skills](https://agentskills.io/) format and work
-with 18+ AI agent hosts including Claude Code, Codex CLI, Amp, OpenCode, and
-Cursor.
+Create a GitHub token that can read the repository and post comments. Create a
+random webhook secret with at least 32 characters.
 
-### Install all agentsfleet skills
+## Install
+
+1. Install the `agentsfleet` command-line interface (CLI).
+
+   ```bash
+   npm install --global @agentsfleet/cli
+   ```
+
+   ```text
+   added <varies> packages in <varies>
+   ```
+
+2. Sign in through your browser.
+
+   ```bash
+   agentsfleet login
+   ```
+
+   ```text
+   Login session
+   session_id: <varies>
+   login_url: <varies>
+   browser: opened
+   login complete
+   ```
+
+3. Save the GitHub token and webhook secret in your active workspace.
+
+   Replace `<GITHUB_TOKEN>` and `<GITHUB_WEBHOOK_SECRET>` with the values you
+   created above.
+
+   ```bash
+   agentsfleet secret create github --data='{"token":"<GITHUB_TOKEN>","webhook_secret":"<GITHUB_WEBHOOK_SECRET>"}'
+   ```
+
+   ```text
+   ✓ Secret 'github' stored in vault.
+   ```
+
+4. Install the fleet from the platform library.
+
+   ```bash
+   agentsfleet install --library github-pr-reviewer
+   ```
+
+   ```text
+   ✓ github-pr-reviewer is live.
+     Fleet ID: <varies>
+     Webhook URLs (register on the upstream provider):
+       github: <varies>
+   ```
+
+5. Open **Repository settings → Webhooks → Add webhook** in GitHub.
+
+   Use the GitHub URL from step 4 as the payload URL. Choose
+   `application/json`, enter the secret from step 3, and select **Pull
+   requests** as the event.
+
+## Verify it works
+
+Open a pull request in the connected repository. GitHub sends the event after
+you open the pull request.
+
+Replace `<FLEET_ID>` with the identifier from the install output.
 
 ```bash
-npx skills add agentsfleet/skills
+agentsfleet logs <FLEET_ID>
 ```
 
-This symlinks every top-level `agentsfleet-*` directory into each supported
-host's skill path that exists on your machine (`~/.claude/skills/`,
-`~/.codex/skills/`, `~/.amp/skills/`, `~/.opencode/skills/`).
-
-### Install a single skill
-
-```bash
-npx skills add agentsfleet/skills --skill agentsfleet-install-platform-ops
+```text
+Event Stream
+  <varies>  webhook:github  <varies>
 ```
 
-### Claude Code Plugin
+The event stream should show a GitHub event. The pull request should contain
+the fleet's review comments.
 
-These skills also ship as a Claude Code plugin marketplace:
+## Repository ownership
 
-```bash
-# 1. Register the marketplace
-claude plugin marketplace add agentsfleet/skills
+This repository owns only the `github-pr-reviewer` Fleet Bundle.
 
-# 2. Install the plugin you want
-claude plugin install agentsfleet-install-platform-ops@agentsfleet-skills
-```
+- [`agentsfleet/platform-ops`](https://github.com/agentsfleet/platform-ops)
+  owns the `platform-ops` Fleet Bundle.
+- [`agentsfleet/skills`](https://github.com/agentsfleet/skills) owns host-side
+  skills, including `/agentsfleet-install-platform-ops`.
 
-### Prerequisites
-
-Most skills here drive `agentsfleet`. Install it first:
-
-```bash
-npm install -g @agentsfleet/cli
-agentsfleet auth login
-```
-
-## Available Skills
-
-<details>
-<summary><strong>agentsfleet-install-platform-ops</strong></summary>
-
-One-command install of the platform-ops agent on a user's repo. Watches
-GitHub Actions CD failures and posts evidenced diagnoses to Slack.
-
-**Use when:**
-
-- Setting up an agent on a new repo for the first time
-- Resolving tool credentials (Fly, Slack, GitHub, Upstash) via 1Password / env / prompt
-- Registering and HMAC-verifying webhooks from the user's local `gh`
-- Smoke-testing the install with a real steer round-trip
-
-**Slash-command:** `/agentsfleet-install-platform-ops`
-
-</details>
-
-## Usage
-
-Skills are automatically available once installed. Invoke them by their
-slash-command in any supported host:
-
-```
-/agentsfleet-install-platform-ops
-```
-
-The agent reads the skill body, walks the install plan, and surfaces every
-failure mode verbatim so you can resolve it before retrying.
-
-## Skill Structure
-
-Each skill is a top-level directory matching its slash-command:
-
-```
-agentsfleet-install-platform-ops/
-├── SKILL.md              # Frontmatter + body the host LLM reads
-├── references/           # Detailed docs the skill loads on demand
-│   ├── credential-resolution.md
-│   ├── failure-modes.md
-│   └── self-managed-handoff.md
-└── evals/                # Pin-tests + LLM-judge harness (bun test)
-    ├── package.json
-    ├── tsconfig.json
-    ├── skill-body.test.ts
-    ├── skill-runtime.test.ts
-    ├── repo-detection.test.ts
-    ├── llm-judge.eval.ts
-    └── fixtures/         # Synthetic repos for runtime assertions
-```
-
-The `SKILL.md` frontmatter follows the
-[Agent Skills Open Standard](https://agentskills.io/) with `name`,
-`description`, `license`, `metadata`, `inputs`, and `references`.
-
-## Release model
-
-`main` is the release surface. Push to `main` = ship. No tags, no semver —
-same model as a dotfiles repo. `npx skills add agentsfleet/skills` always pulls
-the latest commit.
-
-## Contributing
-
-Pull requests welcome. Each skill change runs evals on PR via
-`.github/workflows/eval.yml` (Bun test runner). New skills should add a
-top-level `<skill-name>/` directory with `SKILL.md`, `references/`, and
-`evals/`, plus a matching entry in `.claude-plugin/marketplace.json`.
+An installation skill teaches Claude Code, Codex CLI, Amp, or another host how
+to install a fleet. It is not part of the fleet that runs inside `agentsfleet`.
 
 ## License
 
-MIT — Copyright (c) 2026 agentsfleet
+MIT. See [`LICENSE`](LICENSE).
